@@ -47,7 +47,7 @@ const defaultPointerStyles = (dropRef: HTMLElement) => {
   style[TOUCH_ACTIONS] = '';
 };
 
-const addStylesToClone = (clone: HTMLElement, height: number, width: number, y?: number, x?: number) => {
+const addStylesToClone = (clone: HTMLElement, height: number, width: number, x?: number, y?: number) => {
   clone.style.top = `0px`;
   clone.style.left = `0px`;
   clone.style.position = 'absolute';
@@ -193,7 +193,7 @@ export default function BingoBoard() {
     if (!isEdit) return;
     event.preventDefault();
     const target = event.target as HTMLElement;
-    const dragTarget = target.closest('[draggable]') as HTMLElement;
+    const dragTarget = getDragDropTarget(target);
     console.log({ dragTarget });
     if (!dragTarget) return;
 
@@ -204,30 +204,75 @@ export default function BingoBoard() {
     const release = releasePointer(event);
 
     const clone = dragTarget.cloneNode(true) as HTMLElement;
+    clone.id = '';
+    clone.draggable = false;
     console.log({ clone, dragTarget });
 
     addStylesToClone(clone, dragTarget.clientHeight, dragTarget.clientWidth, event.clientX, event.clientY);
 
-    addStyleToDropRef(dragTarget);
+    dragTarget.classList.add(DRAGGING_CLASS);
     document.body.append(clone);
+
+    let prevClosetDrop: HTMLElement = dragTarget;
 
     dragTarget.onpointermove = (event) => {
       console.log('pointer move');
       const { clientX, clientY } = event;
       clone.style.transform = `translate(${clientX}px, ${clientY}px)`;
+      const elementAtPoint = document.elementFromPoint(clientX, clientY) as HTMLElement;
+      if (!elementAtPoint) return;
+      const closetdrop = getDragDropTarget(elementAtPoint);
+      if (!closetdrop) return;
+      if (prevClosetDrop.id === closetdrop.id) {
+        return;
+      }
+
+      removeStyleFromDropRef(prevClosetDrop);
+      addStyleToDropRef(closetdrop);
+      prevClosetDrop = closetdrop;
+    };
+
+    const isPointerAtDrop = (clientX: number, clientY: number) => {
+      const elementAtPoint = document.elementFromPoint(clientX, clientY) as HTMLElement;
+      if (!elementAtPoint) return false;
+      const closetdrop = getDragDropTarget(elementAtPoint);
+      if (!closetdrop) return false;
+      if (prevClosetDrop.id === closetdrop.id) {
+        return true;
+      }
     };
 
     dragTarget.onpointercancel = (event) => {
       console.log('pointer cancel');
+      const { clientX, clientY } = event;
       removePointerListeners(dragTarget, release);
       removeStyleFromDropRef(dragTarget);
+      removeStyleFromDropRef(prevClosetDrop);
+      dragTarget.classList.remove(DRAGGING_CLASS);
+      if (isPointerAtDrop(clientX, clientY)) {
+        const [rowOne, colOne] = splitIntoRowCol(prevClosetDrop.id);
+        const [rowTwo, colTwo] = splitIntoRowCol(dragTarget.id);
+        !checkIfSame({ rowOne, colOne }, { rowTwo, colTwo }) &&
+          updateMatrixWithSwap({ rowOne, colOne }, { rowTwo, colTwo });
+      }
+
       clone.remove();
     };
 
     dragTarget.onpointerup = (event) => {
       console.log('pointer up');
+      const { clientX, clientY } = event;
       removePointerListeners(dragTarget, release);
       removeStyleFromDropRef(dragTarget);
+      removeStyleFromDropRef(prevClosetDrop);
+      dragTarget.classList.remove(DRAGGING_CLASS);
+      if (isPointerAtDrop(clientX, clientY)) {
+        const [rowOne, colOne] = splitIntoRowCol(prevClosetDrop.id);
+        const [rowTwo, colTwo] = splitIntoRowCol(dragTarget.id);
+        !checkIfSame({ rowOne, colOne }, { rowTwo, colTwo }) &&
+          updateMatrixWithSwap({ rowOne, colOne }, { rowTwo, colTwo });
+      }
+
       clone.remove();
     };
   };
