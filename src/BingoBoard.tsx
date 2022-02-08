@@ -47,12 +47,13 @@ const defaultPointerStyles = (dropRef: HTMLElement) => {
   style[TOUCH_ACTIONS] = '';
 };
 
-const addStylesToClone = (clone: HTMLElement, height: number, width: number, top?: number, left?: number) => {
-  clone.style.top = top ? `${top}px` : `0px`;
-  clone.style.left = left ? `${left}px` : `0px`;
+const addStylesToClone = (clone: HTMLElement, height: number, width: number, y?: number, x?: number) => {
+  clone.style.top = `0px`;
+  clone.style.left = `0px`;
   clone.style.position = 'absolute';
   clone.style.height = `${height}px`;
   clone.style.width = `${width}px`;
+  clone.style.transform = `translate(${x}px, ${y}px)`;
 };
 
 const getDragDropTarget = (target: HTMLElement): HTMLElement | null => target.closest('[draggable]');
@@ -205,10 +206,9 @@ export default function BingoBoard() {
     const clone = dragTarget.cloneNode(true) as HTMLElement;
     console.log({ clone, dragTarget });
 
-    addStylesToClone(clone, dragTarget.clientHeight, dragTarget.clientWidth);
+    addStylesToClone(clone, dragTarget.clientHeight, dragTarget.clientWidth, event.clientX, event.clientY);
 
     addStyleToDropRef(dragTarget);
-    clone.style.transform = `translate(${event.clientX}px, ${event.clientY}px)`;
     document.body.append(clone);
 
     dragTarget.onpointermove = (event) => {
