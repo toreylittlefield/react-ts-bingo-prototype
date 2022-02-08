@@ -1,5 +1,6 @@
 import { nanoid, random } from 'nanoid';
-import { useState, useRef, useEffect, Fragment } from 'react';
+import { useState, useRef, useEffect, Fragment, useCallback } from 'react';
+import BoardText from './BoardText';
 import './styles.css';
 
 const DRAGGING_CLASS = 'dragging';
@@ -290,6 +291,14 @@ const BingoBoard = () => {
     }
   }, [matrix, gameWin]);
 
+  const updateTextBoardPiece = useCallback((text: string, row: number, col: number) => {
+    setMatrix((prev) => {
+      const copy = prev.map((el) => el.map((el) => el));
+      copy[row][col].text = text;
+      return copy;
+    });
+  }, []);
+
   return (
     <Fragment>
       <div>
@@ -313,13 +322,12 @@ const BingoBoard = () => {
               onClick={(event) => handleClick(event, !isChecked, rowIndex, colIndex)}
               onPointerDown={handlePointerDown}
             >
-              {rowIndex === 2 && colIndex === 2 ? (
-                <p>
-                  free bingo piece <sub>{text}</sub>
-                </p>
-              ) : (
-                text
-              )}
+              <BoardText
+                rowIndex={rowIndex}
+                colIndex={colIndex}
+                text={text}
+                updateTextBoardPiece={updateTextBoardPiece}
+              />
             </div>
           ))
         )}
