@@ -110,7 +110,7 @@ function checkWin(gameBoard: TileType[][]) {
   return colMap.some(checkAny) || rowMap.some(checkAny);
 }
 
-export default function BingoBoard() {
+const BingoBoard = () => {
   const [matrix, setMatrix] = useState(matrix2D());
   const [isEdit, setIsEdit] = useState(true);
   const dragRef = useRef<HTMLElement | null>(null);
@@ -165,16 +165,24 @@ export default function BingoBoard() {
     dropTargetRef.current && removeStyleFromDropRef(dropTargetRef.current);
   };
 
+  const getRowColsAndSwap = (idOne: string, idTwo: string) => {
+    const [rowOne, colOne] = splitIntoRowCol(idOne);
+    const [rowTwo, colTwo] = splitIntoRowCol(idTwo);
+    !checkIfSame({ rowOne, colOne }, { rowTwo, colTwo }) &&
+      updateMatrixWithSwap({ rowOne, colOne }, { rowTwo, colTwo });
+  };
+
   const handleDrop = (event: React.DragEvent<HTMLElement>) => {
     const id = event.dataTransfer.getData('id');
     console.log({ id }, 'drop');
     const target = event.target as HTMLElement;
     const dropTarget = getDragDropTarget(target);
     if (!dropTarget) return;
-    const [rowOne, colOne] = splitIntoRowCol(id);
-    const [rowTwo, colTwo] = splitIntoRowCol(dropTarget.id);
-    !checkIfSame({ rowOne, colOne }, { rowTwo, colTwo }) &&
-      updateMatrixWithSwap({ rowOne, colOne }, { rowTwo, colTwo });
+    getRowColsAndSwap(id, dropTarget.id);
+    // const [rowOne, colOne] = splitIntoRowCol(id);
+    // const [rowTwo, colTwo] = splitIntoRowCol(dropTarget.id);
+    // !checkIfSame({ rowOne, colOne }, { rowTwo, colTwo }) &&
+    //   updateMatrixWithSwap({ rowOne, colOne }, { rowTwo, colTwo });
   };
 
   const releasePointer = (event: React.PointerEvent) => (dragTarget: HTMLElement) =>
@@ -188,13 +196,41 @@ export default function BingoBoard() {
     release(dragTarget);
   };
 
+  const isPointerAtDrop = (clientX: number, clientY: number, prevClosetDrop: HTMLElement) => {
+    const elementAtPoint = document.elementFromPoint(clientX, clientY) as HTMLElement;
+    if (!elementAtPoint) return false;
+    const closetdrop = getDragDropTarget(elementAtPoint);
+    if (!closetdrop) return false;
+    if (prevClosetDrop.id === closetdrop.id) {
+      return true;
+    }
+  };
+
+  const revertStylesAndSwap = (
+    event: PointerEvent,
+    prevClosetDrop: HTMLElement,
+    dragTarget: HTMLElement,
+    clone: HTMLElement,
+    release: (dragTarget: HTMLElement) => void
+  ) => {
+    const { clientX, clientY } = event;
+    removePointerListeners(dragTarget, release);
+    removeStyleFromDropRef(dragTarget);
+    removeStyleFromDropRef(prevClosetDrop);
+    dragTarget.classList.remove(DRAGGING_CLASS);
+    if (isPointerAtDrop(clientX, clientY, prevClosetDrop)) {
+      getRowColsAndSwap(prevClosetDrop.id, dragTarget.id);
+    }
+
+    clone.remove();
+  };
+
   const handlePointerDown = (event: React.PointerEvent) => {
-    // if (event.pointerType === 'mouse') return;
     if (!isEdit) return;
+    if (event.pointerType === 'mouse') return;
     event.preventDefault();
     const target = event.target as HTMLElement;
     const dragTarget = getDragDropTarget(target);
-    console.log({ dragTarget });
     if (!dragTarget) return;
 
     addPointerStyles(dragTarget);
@@ -206,7 +242,6 @@ export default function BingoBoard() {
     const clone = dragTarget.cloneNode(true) as HTMLElement;
     clone.id = '';
     clone.draggable = false;
-    console.log({ clone, dragTarget });
 
     addStylesToClone(clone, dragTarget.clientHeight, dragTarget.clientWidth, event.clientX, event.clientY);
 
@@ -216,7 +251,6 @@ export default function BingoBoard() {
     let prevClosetDrop: HTMLElement = dragTarget;
 
     dragTarget.onpointermove = (event) => {
-      console.log('pointer move');
       const { clientX, clientY } = event;
       clone.style.transform = `translate(${clientX}px, ${clientY}px)`;
       const elementAtPoint = document.elementFromPoint(clientX, clientY) as HTMLElement;
@@ -232,52 +266,13 @@ export default function BingoBoard() {
       prevClosetDrop = closetdrop;
     };
 
-    const isPointerAtDrop = (clientX: number, clientY: number) => {
-      const elementAtPoint = document.elementFromPoint(clientX, clientY) as HTMLElement;
-      if (!elementAtPoint) return false;
-      const closetdrop = getDragDropTarget(elementAtPoint);
-      if (!closetdrop) return false;
-      if (prevClosetDrop.id === closetdrop.id) {
-        return true;
-      }
-    };
+    dragTarget.onpointercancel = (event) => revertStylesAndSwap(event, prevClosetDrop, dragTarget, clone, release);
 
-    dragTarget.onpointercancel = (event) => {
-      console.log('pointer cancel');
-      const { clientX, clientY } = event;
-      removePointerListeners(dragTarget, release);
-      removeStyleFromDropRef(dragTarget);
-      removeStyleFromDropRef(prevClosetDrop);
-      dragTarget.classList.remove(DRAGGING_CLASS);
-      if (isPointerAtDrop(clientX, clientY)) {
-        const [rowOne, colOne] = splitIntoRowCol(prevClosetDrop.id);
-        const [rowTwo, colTwo] = splitIntoRowCol(dragTarget.id);
-        !checkIfSame({ rowOne, colOne }, { rowTwo, colTwo }) &&
-          updateMatrixWithSwap({ rowOne, colOne }, { rowTwo, colTwo });
-      }
-
-      clone.remove();
-    };
-
-    dragTarget.onpointerup = (event) => {
-      console.log('pointer up');
-      const { clientX, clientY } = event;
-      removePointerListeners(dragTarget, release);
-      removeStyleFromDropRef(dragTarget);
-      removeStyleFromDropRef(prevClosetDrop);
-      dragTarget.classList.remove(DRAGGING_CLASS);
-      if (isPointerAtDrop(clientX, clientY)) {
-        const [rowOne, colOne] = splitIntoRowCol(prevClosetDrop.id);
-        const [rowTwo, colTwo] = splitIntoRowCol(dragTarget.id);
-        !checkIfSame({ rowOne, colOne }, { rowTwo, colTwo }) &&
-          updateMatrixWithSwap({ rowOne, colOne }, { rowTwo, colTwo });
-      }
-
-      clone.remove();
-    };
+    dragTarget.onpointerup = (event) => revertStylesAndSwap(event, prevClosetDrop, dragTarget, clone, release);
   };
 
   const handleClick = (event: React.MouseEvent, bool: boolean, row: number, col: number) => {
+    if (!isEdit) return;
     event.preventDefault();
     setMatrix((prev) => {
       const copy = prev.map((el) => el.map((el) => el));
@@ -309,12 +304,12 @@ export default function BingoBoard() {
               id={`${rowIndex},${colIndex}`}
               className={isChecked ? `bingo-piece checked` : `bingo-piece`}
               draggable={isEdit}
-              // onDragStart={handleDragStart}
-              // onDragEnter={handleDragEnter}
-              // onDragLeave={handleDragLeave}
-              // onDragOver={(e) => e.preventDefault()}
-              // onDrop={handleDrop}
-              // onDragEnd={handleDragEnd}
+              onDragStart={handleDragStart}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
               onClick={(event) => handleClick(event, !isChecked, rowIndex, colIndex)}
               onPointerDown={handlePointerDown}
             >
@@ -332,4 +327,6 @@ export default function BingoBoard() {
       </section>
     </Fragment>
   );
-}
+};
+
+export default BingoBoard;
