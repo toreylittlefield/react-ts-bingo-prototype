@@ -272,7 +272,7 @@ const BingoBoard = () => {
   };
 
   const handleClick = (event: React.MouseEvent, bool: boolean, row: number, col: number) => {
-    if (!isEdit) return;
+    if (isEdit) return;
     event.preventDefault();
     setMatrix((prev) => {
       const copy = prev.map((el) => el.map((el) => el));
