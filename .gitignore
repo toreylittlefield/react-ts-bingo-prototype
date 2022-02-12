@@ -131,3 +131,9 @@ dist
 
 # Local Netlify folder
 .netlify
+
+# VS Code
+.vscode
+
+# Fauna
+.faunarc
